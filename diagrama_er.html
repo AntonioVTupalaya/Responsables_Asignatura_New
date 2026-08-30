@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diagrama ER - Gestión de Docentes</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; background: #fafafa; margin: 20px; color: #222; }
+  h1 { font-size: 20px; }
+  .mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+</style>
+</head>
+<body>
+<h1>Diagrama Entidad-Relación &mdash; docentes.db</h1>
+<div class="mermaid">
+erDiagram
+    CAMPUS ||--o{ SECCION : "alberga"
+    MODALIDAD ||--o{ SECCION : "define"
+    ASIGNATURA ||--o{ SECCION : "se ofrece como"
+    DOCENTE ||--o{ SECCION : "dicta"
+    SECCION ||--o{ HORARIO : "tiene"
+
+    CAMPUS {
+        integer id_campus PK
+        text    nombre UK
+    }
+
+    MODALIDAD {
+        integer id_modalidad PK
+        text    nombre UK
+    }
+
+    ASIGNATURA {
+        text    cod_asignatura PK
+        text    nombre
+        text    tipo_curso
+        text    plan
+    }
+
+    DOCENTE {
+        integer id_docente PK
+        text    dni UK
+        text    apellidos
+        text    nombres
+        text    nombre_completo
+    }
+
+    SECCION {
+        text    nrc PK
+        integer id_campus FK
+        integer id_modalidad FK
+        text    cod_asignatura FK
+        integer id_docente FK
+        text    metodo_asistencia
+        text    estado
+        text    parte_periodo
+        text    bloque
+        text    f_inicio
+        text    f_fin
+    }
+
+    HORARIO {
+        integer id_horario PK
+        text    nrc FK
+        text    tipo_sesion
+        text    dia
+        text    hora_inicio
+        text    hora_fin
+        text    aula
+    }
+</div>
+</body>
+</html>
