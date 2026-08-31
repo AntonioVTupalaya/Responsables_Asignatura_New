@@ -225,6 +225,9 @@ CSS = f"""
 }}
 .footer b {{ color: {LAVANDA}; }}
 [data-testid="stSidebar"] {{ display: none; }}
+header[data-testid="stHeader"] {{ background: transparent !important; }}
+[data-testid="stHeader"] [data-testid="stDecoration"] {{ visibility: hidden; }}
+[data-testid="stMainMenu"] {{ visibility: hidden; }}
 </style>
 """
 
