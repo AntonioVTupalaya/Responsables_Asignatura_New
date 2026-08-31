@@ -24,6 +24,8 @@ GRIS_TEXTO = "#4A4A4A"
 
 TODO_MOD = "Todas las modalidades"
 TODO_BLOQ = "Todos los bloques"
+BLOQUE_MAP = {"BLOQUE 1": "BLOQUE A", "BLOQUE 2": "BLOQUE B"}
+BLOQUE_RMAP = {v: k for k, v in BLOQUE_MAP.items()}
 TODO_PLAN = "Todos los planes"
 TODO_CURSO = "Todos los cursos"
 SIN_BLOQUE = "SIN BLOQUE"
@@ -58,7 +60,7 @@ def obtener_bloques(modalidad):
         bloques = sorted(x for x in df["BLOQUE"].dropna().unique())
         if df["BLOQUE"].isna().any():
             bloques.append(SIN_BLOQUE)
-        return bloques
+        return [BLOQUE_MAP.get(b, b) for b in bloques]
 
 
 @st.cache_data
@@ -97,12 +99,13 @@ def obtener_cursos(modalidad, bloque, plan):
 
 
 def _filtro_bloque(bloque):
-    """Devuelve (condicion_sql, parametro)."""
+    """Devuelve (condicion_sql, parametro). Recibe la etiqueta visible (ej. BLOQUE A)."""
     if not bloque or bloque == TODO_BLOQ:
         return "", ()
     if bloque == SIN_BLOQUE:
         return "AND s.bloque IS NULL", ()
-    return "AND s.bloque = ?", (bloque,)
+    sql_val = BLOQUE_RMAP.get(bloque, bloque)
+    return "AND s.bloque = ?", (sql_val,)
 
 
 @st.cache_data
