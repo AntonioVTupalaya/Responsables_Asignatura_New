@@ -143,22 +143,6 @@ def lista_carga_lectiva(modalidad, bloque, plan, curso):
 
 
 @st.cache_data
-@st.cache_data
-def total_nrc():
-    with obtener_conn() as conn:
-        return pd.read_sql(
-            "SELECT COUNT(*) AS n FROM seccion", conn
-        )["n"].iloc[0]
-
-
-@st.cache_data
-def total_docentes():
-    with obtener_conn() as conn:
-        return pd.read_sql(
-            "SELECT COUNT(*) AS n FROM docente", conn
-        )["n"].iloc[0]
-
-
 def lista_directorio(_modalidad, _bloque, _plan, _curso):
     return _directorio(_modalidad, _bloque, _plan, _curso)
 
@@ -355,9 +339,9 @@ def main():
         # ---------------------------------------------------- metricas
         c_m1, c_m2, c_m3, c_m4 = st.columns(4)
         with c_m1:
-            tarjeta_metrica("NRC", total_nrc(), PRINCIPAL)
+            tarjeta_metrica("NRC", len(df), PRINCIPAL)
         with c_m2:
-            tarjeta_metrica("DOCENTES", total_docentes(), FRANJA)
+            tarjeta_metrica("DOCENTES", len(df_dir), FRANJA)
         with c_m3:
             tarjeta_metrica("CURSOS", df["CURSO"].nunique(), LILA_DEC)
         with c_m4:
