@@ -112,18 +112,18 @@ def lista_carga_lectiva(modalidad, bloque, plan, curso):
         SELECT
             c.nombre AS CAMPUS,
             m.nombre AS MODALIDAD,
-            s.plan   AS DESCRIPCION_ATRIBUTO_PLAN,
+            s.plan   AS PLAN,
             a.cod_asignatura AS COD_ASIGNATURA,
             a.nombre AS CURSO,
             s.nrc    AS NRC,
-            s.mat_totales AS MATRICULADOS_TOTALES,
+            s.mat_totales AS MATRICULADOS,
             COALESCE((
                 SELECT GROUP_CONCAT(d2.nombre_completo, ' - ')
                 FROM docente_seccion ds
                 JOIN docente d2 ON d2.id_docente = ds.id_docente
                 WHERE ds.nrc = s.nrc
             ), 'SIN ASIGNAR') AS DOCENTE,
-            s.hor AS HOR
+            s.hor AS HORARIO
         FROM seccion s
         LEFT JOIN campus c     ON c.id_campus     = s.id_campus
         LEFT JOIN modalidad m  ON m.id_modalidad  = s.id_modalidad
@@ -353,9 +353,9 @@ def main():
         st.markdown('<div class="sec-h">Carga Lectiva 202620</div>',
                     unsafe_allow_html=True)
         cols_lista = [
-            "CAMPUS", "MODALIDAD", "DESCRIPCION_ATRIBUTO_PLAN",
-            "COD_ASIGNATURA", "CURSO", "NRC", "MATRICULADOS_TOTALES",
-            "DOCENTE", "HOR",
+            "CAMPUS", "MODALIDAD", "PLAN",
+            "COD_ASIGNATURA", "CURSO", "NRC", "MATRICULADOS",
+            "DOCENTE", "HORARIO",
         ]
         st.download_button(
             "📥 Descargar lista (CSV)",
