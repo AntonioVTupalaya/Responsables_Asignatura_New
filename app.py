@@ -304,15 +304,22 @@ def main():
         modalidad = st.session_state["f_modalidad"]
         modalidad_sql = "" if modalidad == TODO_MOD else modalidad
 
+        # BLOQUE solo se habilita cuando la modalidad es semipresencial
+        # (UC-PRESENCIAL no usa bloques).
+        bloque_habilitado = modalidad == "UC-SEMIPRESENCIAL"
+
         with c2:
             st.selectbox(
                 "BLOQUE",
                 [TODO_BLOQ] + obtener_bloques(modalidad_sql),
                 key="f_bloque",
                 on_change=cb_reset_plan,
+                disabled=not bloque_habilitado,
             )
         bloque = st.session_state["f_bloque"]
-        bloque_sql = "" if bloque == TODO_BLOQ else bloque
+        bloque_sql = (
+            bloque if (bloque_habilitado and bloque != TODO_BLOQ) else ""
+        )
 
         with c3:
             st.selectbox(
