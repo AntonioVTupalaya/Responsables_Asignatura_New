@@ -117,7 +117,7 @@ def lista_carga_lectiva(modalidad, bloque, plan, curso):
             m.nombre AS MODALIDAD,
             s.plan   AS PLAN,
             a.cod_asignatura AS COD_ASIGNATURA,
-            a.nombre AS CURSO,
+            a.nombre AS ASIGNATURA,
             s.nrc    AS NRC,
             s.mat_totales AS MATRICULADOS,
             COALESCE((
@@ -353,7 +353,7 @@ def main():
 
         with c4:
             st.selectbox(
-                "CURSO",
+                "ASIGNATURA",
                 [TODO_CURSO] + obtener_cursos(modalidad_sql, bloque_sql, plan_sql),
                 key="f_curso",
             )
@@ -370,7 +370,7 @@ def main():
         with c_m2:
             tarjeta_metrica("DOCENTES", len(df_dir), FRANJA)
         with c_m3:
-            tarjeta_metrica("CURSOS", df["CURSO"].nunique(), LILA_DEC)
+            tarjeta_metrica("ASIGNATURAS", df["ASIGNATURA"].nunique(), LILA_DEC)
         with c_m4:
             tarjeta_metrica("CAMPUS", df["CAMPUS"].nunique(), GRIS_TEXTO)
 
@@ -381,7 +381,7 @@ def main():
                     unsafe_allow_html=True)
         cols_lista = [
             "CAMPUS", "MODALIDAD", "PLAN",
-            "COD_ASIGNATURA", "CURSO", "NRC", "MATRICULADOS",
+            "COD_ASIGNATURA", "ASIGNATURA", "NRC", "MATRICULADOS",
             "DOCENTE", "HORARIO",
         ]
         st.download_button(
