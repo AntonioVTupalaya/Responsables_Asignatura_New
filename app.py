@@ -316,7 +316,7 @@ def main():
 
         with c3:
             st.selectbox(
-                "DESCRIPCIÓN ATRIBUTO PLAN",
+                "PLAN DE ESTUDIOS",
                 [TODO_PLAN] + obtener_planes(modalidad_sql, bloque_sql),
                 key="f_plan",
                 on_change=cb_reset_curso,
