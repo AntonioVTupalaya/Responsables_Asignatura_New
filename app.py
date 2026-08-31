@@ -6,14 +6,29 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 import sqlite3
 
-
+# ---------------------------------------------------------------- config
 BASE = Path(__file__).resolve().parent
 NOMBRE_DB = BASE / "docentes.db"
+LOGO = BASE / "logo_uc.png"
 
-TODAS_MODALIDADES = "Todas las modalidades"
-TODOS_PLANES = "Todos los planes"
-TODOS_CURSOS = "Todos los cursos"
+# Paleta PRISM (Universidad Continental)
+PRINCIPAL = "#6802C1"
+FRANJA = "#9632FA"
+PROFUNDO = "#28075A"
+TITULO = "#00143D"
+LILA_DEC = "#CAA0F5"
+LAVANDA = "#E0AAFF"
+FONDO_SUAVE = "#F7F4FF"
+BLANCO = "#FFFFFF"
+GRIS_TEXTO = "#4A4A4A"
 
+TODO_MOD = "Todas las modalidades"
+TODO_BLOQ = "Todos los bloques"
+TODO_PLAN = "Todos los planes"
+TODO_CURSO = "Todos los cursos"
+SIN_BLOQUE = "SIN BLOQUE"
+
+# ---------------------------------------------------------------- datos
 
 def obtener_conn():
     return sqlite3.connect(NOMBRE_DB)
@@ -23,180 +38,352 @@ def obtener_conn():
 def obtener_modalidades():
     with obtener_conn() as conn:
         return pd.read_sql(
-            "SELECT nombre FROM modalidad ORDER BY nombre",
-            conn
+            "SELECT nombre FROM modalidad ORDER BY nombre", conn
         )["nombre"].tolist()
 
 
 @st.cache_data
-def obtener_planes(modalidad):
+def obtener_bloques(modalidad):
     with obtener_conn() as conn:
-        return pd.read_sql(
+        df = pd.read_sql(
             """
-            SELECT DISTINCT a.plan AS PLAN
+            SELECT s.bloque AS BLOQUE
             FROM seccion s
             JOIN modalidad m ON m.id_modalidad = s.id_modalidad
-            JOIN asignatura a ON a.cod_asignatura = s.cod_asignatura
             WHERE (? = '' OR m.nombre = ?)
-            ORDER BY a.plan
             """,
             conn,
             params=(modalidad, modalidad),
-        )["PLAN"].tolist()
+        )
+        bloques = sorted(x for x in df["BLOQUE"].dropna().unique())
+        if df["BLOQUE"].isna().any():
+            bloques.append(SIN_BLOQUE)
+        return bloques
 
 
 @st.cache_data
-def obtener_cursos(modalidad, plan):
+def obtener_planes(modalidad, bloque):
+    cond_bloque, param_bloque = _filtro_bloque(bloque)
+    sql = f"""
+        SELECT DISTINCT s.plan AS PLAN
+        FROM seccion s
+        JOIN modalidad m ON m.id_modalidad = s.id_modalidad
+        WHERE (? = '' OR m.nombre = ?)
+          {cond_bloque}
+        ORDER BY s.plan
+    """
     with obtener_conn() as conn:
-        return pd.read_sql(
-            """
-            SELECT DISTINCT a.nombre AS CURSO
-            FROM seccion s
-            JOIN modalidad m ON m.id_modalidad = s.id_modalidad
-            JOIN asignatura a ON a.cod_asignatura = s.cod_asignatura
-            WHERE (? = '' OR m.nombre = ?)
-              AND (? = '' OR a.plan = ?)
-            ORDER BY a.nombre
-            """,
-            conn,
-            params=(modalidad, modalidad, plan, plan),
-        )["CURSO"].tolist()
+        df = pd.read_sql(sql, conn,
+                         params=(modalidad, modalidad) + param_bloque)
+    return [p for p in df["PLAN"].dropna().tolist() if p != ""]
 
 
 @st.cache_data
-def filtrar_docentes(modalidad, plan, curso):
+def obtener_cursos(modalidad, bloque, plan):
+    cond_bloque, param_bloque = _filtro_bloque(bloque)
+    sql = f"""
+        SELECT DISTINCT a.nombre AS CURSO
+        FROM seccion s
+        JOIN modalidad m ON m.id_modalidad = s.id_modalidad
+        JOIN asignatura a ON a.cod_asignatura = s.cod_asignatura
+        WHERE (? = '' OR m.nombre = ?)
+          AND (? = '' OR s.plan = ?)
+          {cond_bloque}
+        ORDER BY a.nombre
+    """
+    with obtener_conn() as conn:
+        return pd.read_sql(sql, conn, params=(modalidad, modalidad, plan, plan)
+                           + param_bloque)["CURSO"].tolist()
+
+
+def _filtro_bloque(bloque):
+    """Devuelve (condicion_sql, parametro)."""
+    if not bloque or bloque == TODO_BLOQ:
+        return "", ()
+    if bloque == SIN_BLOQUE:
+        return "AND s.bloque IS NULL", ()
+    return "AND s.bloque = ?", (bloque,)
+
+
+@st.cache_data
+def lista_carga_lectiva(modalidad, bloque, plan, curso):
+    cond_bloque, param_bloque = _filtro_bloque(bloque)
+    sql = f"""
+        SELECT
+            c.nombre AS CAMPUS,
+            m.nombre AS MODALIDAD,
+            s.plan   AS DESCRIPCION_ATRIBUTO_PLAN,
+            a.cod_asignatura AS COD_ASIGNATURA,
+            a.nombre AS CURSO,
+            s.nrc    AS NRC,
+            s.mat_totales AS MATRICULADOS_TOTALES,
+            COALESCE((
+                SELECT GROUP_CONCAT(d2.nombre_completo, ' - ')
+                FROM docente_seccion ds
+                JOIN docente d2 ON d2.id_docente = ds.id_docente
+                WHERE ds.nrc = s.nrc
+            ), 'SIN ASIGNAR') AS DOCENTE,
+            s.hor AS HOR
+        FROM seccion s
+        LEFT JOIN campus c     ON c.id_campus     = s.id_campus
+        LEFT JOIN modalidad m  ON m.id_modalidad  = s.id_modalidad
+        LEFT JOIN asignatura a ON a.cod_asignatura = s.cod_asignatura
+        WHERE (? = '' OR m.nombre = ?)
+          AND (? = '' OR s.plan = ?)
+          AND (? = '' OR a.nombre = ?)
+          {cond_bloque}
+        ORDER BY c.nombre, a.nombre, s.nrc
+    """
     with obtener_conn() as conn:
         return pd.read_sql(
-            """
-            SELECT
-                c.nombre AS CAMPUS,
-                m.nombre AS MODALIDAD,
-                a.plan AS PLAN,
-                s.nrc AS NRC,
-                a.cod_asignatura AS COD_ASIGNATURA,
-                a.nombre AS CURSO,
-                d.nombre_completo AS DOCENTE
-            FROM seccion s
-            JOIN campus c     ON c.id_campus     = s.id_campus
-            JOIN modalidad m  ON m.id_modalidad  = s.id_modalidad
-            JOIN asignatura a ON a.cod_asignatura = s.cod_asignatura
-            JOIN docente d    ON d.id_docente    = s.id_docente
-            WHERE (? = '' OR m.nombre = ?)
-              AND (? = '' OR a.plan = ?)
-              AND (? = '' OR a.nombre = ?)
-            ORDER BY c.nombre, a.nombre, s.nrc
-            """,
+            sql,
             conn,
-            params=(modalidad, modalidad, plan, plan, curso, curso),
+            params=(modalidad, modalidad, plan, plan, curso, curso) + param_bloque,
         )
 
 
-def callback_reiniciar_plan():
-    st.session_state["filtro_plan"] = TODOS_PLANES
-    callback_reiniciar_curso()
+@st.cache_data
+def lista_directorio(_modalidad, _bloque, _plan, _curso):
+    return _directorio(_modalidad, _bloque, _plan, _curso)
 
 
-def callback_reiniciar_curso():
-    st.session_state["filtro_curso"] = TODOS_CURSOS
+# --------------------------------------------------------------- UI / CSS
+CSS = f"""
+<style>
+.stApp {{ background-color: {FONDO_SUAVE}; }}
+
+.hero {{
+  background: linear-gradient(120deg, {PROFUNDO} 0%, {PRINCIPAL} 55%, {FRANJA} 100%);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 6px 18px rgba(40,7,90,.35);
+}}
+.hero img {{ height: 64px; }}
+.hero h1 {{
+  color: {BLANCO};
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: .5px;
+}}
+.hero .sub {{
+  color: {LAVANDA};
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}}
+.hero .sr {{
+  color: {BLANCO};
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 6px;
+}}
+.sec-h {{
+  color: {TITULO};
+  font-weight: 800;
+  font-size: 18px;
+  border-left: 6px solid {PRINCIPAL};
+  padding-left: 12px;
+  margin: 8px 0 14px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}}
+.tarjeta {{
+  background: {BLANCO};
+  border-left: 6px solid {PRINCIPAL};
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(40,7,90,.10);
+}}
+.tarjeta .t {{ color: {GRIS_TEXTO}; font-size: 12px; letter-spacing: 1px; }}
+.tarjeta .v {{ color: {TITULO}; font-size: 26px; font-weight: 800; margin-top: 2px; }}
+.stDownloadButton button {{
+  background-color: {PRINCIPAL};
+  color: {BLANCO};
+  border: 1px solid {PRINCIPAL};
+  border-radius: 8px;
+}}
+.stDownloadButton button:hover {{
+  background-color: {PROFUNDO};
+  color: {BLANCO};
+  border-color: {PROFUNDO};
+}}
+.footer {{
+  background: {PROFUNDO};
+  color: {BLANCO};
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-top: 26px;
+  text-align: center;
+  font-size: 13px;
+}}
+.footer b {{ color: {LAVANDA}; }}
+[data-testid="stSidebar"] {{ display: none; }}
+</style>
+"""
+
+
+def encabezado():
+    b64 = ""
+    if LOGO.exists():
+        b64 = (
+            "data:image/png;base64,"
+            + __import__("base64").b64encode(LOGO.read_bytes()).decode()
+        )
+    st.markdown(CSS, unsafe_allow_html=True)
+    img = f'<img src="{b64}" alt="Logo UC"/>' if b64 else ""
+    st.markdown(
+        f"""
+        <div class="hero">
+          {img}
+          <div>
+            <div class="sub">Universidad Continental · Dirección de Estudios Generales de Ciencias</div>
+            <h1>RELACIÓN DOCENTES POR CURSO</h1>
+            <div class="sr">Carga Lectiva 2026-20 · Directorio de Docentes</div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def tarjeta_metrica(titulo, valor, lado=PRINCIPAL):
+    st.markdown(
+        f"""
+        <div class="tarjeta" style="border-left-color:{lado};">
+          <div class="t">{titulo}</div>
+          <div class="v">{valor}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# --------------------------------------------------------------- callbacks
+def cb_reset_bloque():
+    st.session_state["f_bloque"] = TODO_BLOQ
+    cb_reset_plan()
+
+
+def cb_reset_plan():
+    st.session_state["f_plan"] = TODO_PLAN
+    cb_reset_curso()
+
+
+def cb_reset_curso():
+    st.session_state["f_curso"] = TODO_CURSO
 
 
 def main():
-    # Configuración general de la página
     st.set_page_config(
-        page_title="Gestión de Docentes",
-        page_icon="📂",
-        layout="wide"
+        page_title="Relación Docentes por Curso",
+        page_icon="🎓",
+        layout="wide",
+        initial_sidebar_state="collapsed",
     )
-
-    # Títulos
-    st.title("📂 Recursos de Gestión del Docente")
-    st.subheader(
-        "Docentes de Asignaturas Generales Ciencias"
-    )
+    encabezado()
 
     try:
-        # Filtros anidados
-        col_mod, col_plan, col_curso = st.columns(3)
+        modalidades = obtener_modalidades()
 
-        with col_mod:
+        c1, c2, c3, c4 = st.columns(4)
+
+        with c1:
             st.selectbox(
-                "🏫 Modalidad",
-                [TODAS_MODALIDADES] + obtener_modalidades(),
-                key="filtro_modalidad",
-                on_change=callback_reiniciar_plan,
+                "MODALIDAD",
+                [TODO_MOD] + modalidades,
+                key="f_modalidad",
+                on_change=cb_reset_bloque,
             )
+        modalidad = st.session_state["f_modalidad"]
+        modalidad_sql = "" if modalidad == TODO_MOD else modalidad
 
-        modalidad = st.session_state["filtro_modalidad"]
-        modalidad_sql = "" if modalidad == TODAS_MODALIDADES else modalidad
-
-        with col_plan:
+        with c2:
             st.selectbox(
-                "📋 Plan",
-                [TODOS_PLANES] + obtener_planes(modalidad_sql),
-                key="filtro_plan",
-                on_change=callback_reiniciar_curso,
+                "BLOQUE",
+                [TODO_BLOQ] + obtener_bloques(modalidad_sql),
+                key="f_bloque",
+                on_change=cb_reset_plan,
             )
+        bloque = st.session_state["f_bloque"]
+        bloque_sql = "" if bloque == TODO_BLOQ else bloque
 
-        plan = st.session_state["filtro_plan"]
-        plan_sql = "" if plan == TODOS_PLANES else plan
-
-        with col_curso:
+        with c3:
             st.selectbox(
-                "🎓 Curso",
-                [TODOS_CURSOS] + obtener_cursos(modalidad_sql, plan_sql),
-                key="filtro_curso",
+                "DESCRIPCIÓN ATRIBUTO PLAN",
+                [TODO_PLAN] + obtener_planes(modalidad_sql, bloque_sql),
+                key="f_plan",
+                on_change=cb_reset_curso,
             )
+        plan = st.session_state["f_plan"]
+        plan_sql = "" if plan == TODO_PLAN else plan
 
-        curso = st.session_state["filtro_curso"]
-        curso_sql = "" if curso == TODOS_CURSOS else curso
+        with c4:
+            st.selectbox(
+                "CURSO",
+                [TODO_CURSO] + obtener_cursos(modalidad_sql, bloque_sql, plan_sql),
+                key="f_curso",
+            )
+        curso = st.session_state["f_curso"]
+        curso_sql = "" if curso == TODO_CURSO else curso
 
-        # Consulta con filtros aplicados
-        df_filtrado = filtrar_docentes(
-            modalidad_sql, plan_sql, curso_sql
-        )
+        df = lista_carga_lectiva(modalidad_sql, bloque_sql, plan_sql, curso_sql)
+        df_dir = _directorio(modalidad_sql, bloque_sql, plan_sql, curso_sql)
+
+        # ---------------------------------------------------- metricas
+        c_m1, c_m2, c_m3, c_m4 = st.columns(4)
+        with c_m1:
+            tarjeta_metrica("SECCIONES", len(df), PRINCIPAL)
+        with c_m2:
+            tarjeta_metrica("DOCENTES", len(df_dir), FRANJA)
+        with c_m3:
+            tarjeta_metrica("CURSOS", df["CURSO"].nunique(), LILA_DEC)
+        with c_m4:
+            tarjeta_metrica("CAMPUS", df["CAMPUS"].nunique(), GRIS_TEXTO)
 
         st.divider()
 
-        # Encabezado y total
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            st.subheader("👨‍🏫 Lista de Docentes")
-
-        with col2:
-            st.metric(
-                "Total de registros",
-                len(df_filtrado)
-            )
-
-        # Columnas que se mostrarán
-        columnas_resultado = [
-            "CAMPUS",
-            "MODALIDAD",
-            "PLAN",
-            "NRC",
-            "COD_ASIGNATURA",
-            "CURSO",
-            "DOCENTE"
+        # ------------------------------------------- lista Carga Lectiva
+        st.markdown('<div class="sec-h">Carga Lectiva 202620</div>',
+                    unsafe_allow_html=True)
+        cols_lista = [
+            "CAMPUS", "MODALIDAD", "DESCRIPCION_ATRIBUTO_PLAN",
+            "COD_ASIGNATURA", "CURSO", "NRC", "MATRICULADOS_TOTALES",
+            "DOCENTE", "HOR",
         ]
-
-        # Preparar descarga
-        csv = df_filtrado[columnas_resultado].to_csv(
-            index=False
-        ).encode("utf-8-sig")
-
         st.download_button(
-            label="📥 Descargar lista filtrada (CSV)",
-            data=csv,
-            file_name="Docentes_filtrado.csv",
-            mime="text/csv"
+            "📥 Descargar lista (CSV)",
+            df[cols_lista].to_csv(index=False).encode("utf-8-sig"),
+            file_name="Carga_lectiva_filtrado.csv",
+            mime="text/csv",
         )
+        st.dataframe(df[cols_lista], width="stretch", hide_index=True)
 
-        # Mostrar tabla
-        st.dataframe(
-            df_filtrado[columnas_resultado],
-            width="stretch",
-            hide_index=True
+        st.divider()
+
+        # --------------------------------------------------- DIRECTORIO
+        st.markdown('<div class="sec-h">Directorio Docentes 2026-20</div>',
+                    unsafe_allow_html=True)
+        cols_dir = ["DOCENTE", "IDDOCENTE", "CORREO_INSTITUCIONAL", "CELULAR"]
+        st.download_button(
+            "📥 Descargar directorio (CSV)",
+            df_dir[cols_dir].to_csv(index=False).encode("utf-8-sig"),
+            file_name="Directorio_filtrado.csv",
+            mime="text/csv",
+        )
+        st.dataframe(df_dir[cols_dir], width="stretch", hide_index=True)
+
+        st.markdown(
+            f'<div class="footer">Universidad Continental · '
+            f'<b>Dirección de Estudios Generales de Ciencias</b> · '
+            f'Periodo <b>2026-20</b> · Proyecto PRISM</div>',
+            unsafe_allow_html=True,
         )
 
     except sqlite3.OperationalError as error:
@@ -204,15 +391,37 @@ def main():
             f"No se pudo leer la base de datos. "
             f"Ejecute primero 'python cargar_db.py'. Detalle: {error}"
         )
-
     except pd.errors.DatabaseError as error:
-        st.error(
-            f"Error de consulta a la base de datos: {error}"
-        )
-
+        st.error(f"Error de consulta a la base de datos: {error}")
     except Exception as error:
-        st.error(
-            f"Error inesperado: {error}"
+        st.error(f"Error inesperado: {error}")
+
+
+@st.cache_data
+def _directorio(modalidad, bloque, plan, curso):
+    cond_bloque, param_bloque = _filtro_bloque(bloque)
+    sql = f"""
+        SELECT DISTINCT
+            d.nombre_completo AS DOCENTE,
+            d.id_docente AS IDDOCENTE,
+            d.correo_institucional AS CORREO_INSTITUCIONAL,
+            d.celular AS CELULAR
+        FROM seccion s
+        JOIN modalidad m ON m.id_modalidad = s.id_modalidad
+        JOIN asignatura a ON a.cod_asignatura = s.cod_asignatura
+        JOIN docente_seccion ds ON ds.nrc = s.nrc
+        JOIN docente d ON d.id_docente = ds.id_docente
+        WHERE (? = '' OR m.nombre = ?)
+          AND (? = '' OR s.plan = ?)
+          AND (? = '' OR a.nombre = ?)
+          {cond_bloque}
+        ORDER BY d.nombre_completo
+    """
+    with obtener_conn() as conn:
+        return pd.read_sql(
+            sql,
+            conn,
+            params=(modalidad, modalidad, plan, plan, curso, curso) + param_bloque,
         )
 
 
@@ -220,9 +429,7 @@ if __name__ == "__main__":
     import subprocess
     import sys
 
-    # Si se ejecuta con `python app.py`, relanzar con Streamlit.
     if get_script_run_ctx() is None:
-        # Evita el prompt de bienvenida de la primera ejecución de Streamlit.
         dir_credenciales = Path.home() / ".streamlit"
         archivo_credenciales = dir_credenciales / "credentials.toml"
         if not archivo_credenciales.exists():
@@ -231,7 +438,6 @@ if __name__ == "__main__":
                 '[general]\nemail = ""\n',
                 encoding="utf-8",
             )
-
         subprocess.run(
             [sys.executable, "-m", "streamlit", "run", __file__],
             check=True,
