@@ -226,8 +226,22 @@ CSS = f"""
 .footer b {{ color: {LAVANDA}; }}
 [data-testid="stSidebar"] {{ display: none; }}
 header[data-testid="stHeader"] {{ background: transparent !important; }}
-[data-testid="stHeader"] [data-testid="stDecoration"] {{ visibility: hidden; }}
-[data-testid="stMainMenu"] {{ visibility: hidden; }}
+[data-testid="stHeader"] [data-testid="stDecoration"] {{ display: none !important; }}
+[data-testid="stMainMenu"], [data-testid="stMainMenuExpanded"] {{
+  display: none !important;
+}}
+[data-testid="stToolbar"] {{
+  visibility: hidden !important;
+}}
+[data-testid="stToolbarActions"] {{
+  display: none !important;
+}}
+button[aria-label*="Deploy"], button[aria-label*="Manage app"], button[aria-label*="Github"] {{
+  display: none !important;
+}}
+section[data-testid="stSidebar"] nav a[href*="github"], a[href*=".streamlit"] {{
+  display: none !important;
+}}
 </style>
 """
 
