@@ -244,8 +244,8 @@ def encabezado():
           {img}
           <div>
             <div class="sub">Dirección de Estudios Generales de Ciencias</div>
-            <h1>RELACIÓN DOCENTES POR CURSO</h1>
-            <div class="sr">Carga Lectiva 2026-20 · Directorio de Docentes</div>
+            <h1>RESPONSABLES DE ASIGNATURA</h1>
+            <div class="sr">Docentes por Asignatura · Directorio</div>
           </div>
         </div>
         """,
@@ -389,7 +389,7 @@ def main():
         st.markdown(
             f'<div class="footer">Universidad Continental · '
             f'<b>Dirección de Estudios Generales de Ciencias</b> · '
-            f'Periodo <b>2026-20</b> · Responsables de Asignatura</div>',
+            f'Periodo <b>2026-20</b> · @Quispe</div>',
             unsafe_allow_html=True,
         )
 
