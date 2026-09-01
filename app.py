@@ -24,8 +24,10 @@ GRIS_TEXTO = "#4A4A4A"
 
 TODO_MOD = "Todas las modalidades"
 TODO_BLOQ = "Todos los bloques"
+# Normaliza a etiquetas visibles A/B vengan de "BLOQUE A"/"BLOQUE B" o "BLOQUE 1"/"BLOQUE 2"
 BLOQUE_MAP = {"BLOQUE 1": "BLOQUE A", "BLOQUE 2": "BLOQUE B"}
-BLOQUE_RMAP = {v: k for k, v in BLOQUE_MAP.items()}
+BLOQUE_RMAP = {**{v: k for k, v in BLOQUE_MAP.items()},
+               "BLOQUE A": "BLOQUE A", "BLOQUE B": "BLOQUE B"}
 TODO_PLAN = "Todos los planes"
 TODO_CURSO = "Todos los cursos"
 SIN_BLOQUE = "SIN BLOQUE"
