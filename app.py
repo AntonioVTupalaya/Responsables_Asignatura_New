@@ -1,3 +1,4 @@
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -386,11 +387,13 @@ def main():
             "COD_ASIGNATURA", "ASIGNATURA", "NRC", "MATRICULADOS",
             "DOCENTE", "HORARIO",
         ]
+        buf = BytesIO()
+        df[cols_lista].to_excel(buf, index=False, sheet_name="Carga Lectiva")
         st.download_button(
-            "📥 Descargar lista (CSV)",
-            df[cols_lista].to_csv(index=False).encode("utf-8-sig"),
-            file_name="Carga_lectiva_filtrado.csv",
-            mime="text/csv",
+            "📥 Descargar lista (Excel)",
+            data=buf.getvalue(),
+            file_name="Carga_lectiva_filtrado.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         st.dataframe(df[cols_lista], width="stretch", hide_index=True)
 
@@ -400,11 +403,13 @@ def main():
         st.markdown('<div class="sec-h">Directorio Docentes 2026-20</div>',
                     unsafe_allow_html=True)
         cols_dir = ["DOCENTE", "IDDOCENTE", "CORREO_INSTITUCIONAL", "CELULAR"]
+        buf_dir = BytesIO()
+        df_dir[cols_dir].to_excel(buf_dir, index=False, sheet_name="Directorio")
         st.download_button(
-            "📥 Descargar directorio (CSV)",
-            df_dir[cols_dir].to_csv(index=False).encode("utf-8-sig"),
-            file_name="Directorio_filtrado.csv",
-            mime="text/csv",
+            "📥 Descargar directorio (Excel)",
+            data=buf_dir.getvalue(),
+            file_name="Directorio_filtrado.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         st.dataframe(df_dir[cols_dir], width="stretch", hide_index=True)
 
